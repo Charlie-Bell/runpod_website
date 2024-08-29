@@ -1,0 +1,5 @@
+RAG_URL = "https://632qebbps31p2o-8080.proxy.runpod.net/embed"
+TGI_URL = "https://me73klr0mfpvf7-8000.proxy.runpod.net/generate"
+DOCS_DIR = "charlie_docs"
+DB_URI = "milvus.db"
+COLLECTION_NAME = "my_rag_collection"

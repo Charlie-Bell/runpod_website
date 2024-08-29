@@ -22,14 +22,14 @@ def parse_requirements():
 install_requires, dependency_links = parse_requirements()
 
 setup(
-    name="runpod_website",
+    name="mw",
     version="0.0.1",
     packages=find_packages(),
     install_requires=install_requires,
     dependency_links=dependency_links,
     entry_points={
         'console_scripts': [
-            'runpod_website=runpod_website.app:main',
+            'mw=mw.app:main',
         ],
     },
 )
