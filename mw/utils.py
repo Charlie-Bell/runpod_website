@@ -1,51 +1,42 @@
-from httpx import AsyncClient
+import json
+from botocore.exceptions import ClientError
+
+from clients import boto_client
 
 
-async def post(url, prompt):
-    data = {
-            "inputs": prompt,
-            "parameters": {
-                "max_tokens": 250,
-                "temperature": 0.95,
-                "top_p": 0.95,
-                "top_k": 50,
-                "repetition_penalty": 0.8
-            }
-        }
-    headers = {
-        "Content-Type": "application/json"
-    }
-
-    # Send the POST request
-    async with AsyncClient() as client:
-        response = await client.post(
-            url,
-            json=data,
-            headers=headers,
-            timeout=10
+def llm_request(conversation, system, client=boto_client, instruct_model_id="meta.llama3-1-8b-instruct-v1:0"):
+    try:
+        response = client.converse(
+            modelId=instruct_model_id,
+            messages=conversation,
+            inferenceConfig={"maxTokens": 512, "temperature": 0.9, "topP": 0.9},
+            system=[{"text": system}]
         )
 
-    # Check if the request was successful
-    if response.status_code == 200:
-        # Print the response content
-        print("Response:", response.json())
-    else:
-        print(f"Failed to get a valid response. Status code: {response.status_code}")
+        response_text = response["output"]["message"]["content"][0]["text"]
+        print(response_text)
+        return response_text
 
-    return response.json()
-
-
-async def embed_text(url, text):
-    data = {
-        "inputs": text
-    }
-    headers = {
-        "Content-Type": "application/json"
-    }
-
-    async with AsyncClient() as client:
-        response = await client.post(url=url, json=data, headers=headers)
-
-    return response.json()[0]
+    except (ClientError, Exception) as e:
+        print(f"ERROR: Can't invoke '{instruct_model_id}'. Reason: {e}")
+        exit(1)
 
 
+def embed_text(text, client=boto_client, embedding_model_id="amazon.titan-embed-text-v2:0"):
+    body = json.dumps({
+        "inputText": text
+    })
+    accept = "application/json"
+    content_type = "application/json"
+
+    response = client.invoke_model(
+        body=body,
+        modelId=embedding_model_id,
+        accept=accept,
+        contentType=content_type
+    )
+
+    response_body = json.loads(response['body'].read())
+    embedding = response_body.get("embedding")
+    print(embedding)
+    return embedding

@@ -2,16 +2,16 @@ import asyncio
 import logging
 from pymilvus import MilvusClient
 
-from utils import embed_text, post
-from consts import RAG_URL, TGI_URL, DB_URI, COLLECTION_NAME
+from utils import embed_text, llm_request
+from consts import DB_URI, COLLECTION_NAME
 
 
-async def retrieve_context(url, query, collection_name=COLLECTION_NAME, uri=DB_URI):
+def retrieve_context(query, collection_name=COLLECTION_NAME, uri=DB_URI):
     client = MilvusClient(uri)
     search_res = client.search(
         collection_name=collection_name,
         data=[
-            await embed_text(url, query)
+            embed_text(query)
         ],  # Use the `embed_text` function to convert the question to an embedding vector
         limit=3,  # Return top 3 results
         search_params={"metric_type": "IP", "params": {}},  # Inner product distance
@@ -31,35 +31,30 @@ async def retrieve_context(url, query, collection_name=COLLECTION_NAME, uri=DB_U
     return context
 
 
-def build_prompt(query, rag_response):
+def get_prompt(query, role, rag_response=""):
     system = "You are designed to answer questions about Charlie Bell. You may only use information given to you."
     if rag_response:
         system += f"\nYou are given the following factual information on Charlie Bell:\n{rag_response}"
         system += f"\nPlease take into consideration this information if relevant and formulate your response."
     else:
         system += f"\nYou do not have any information about Charlie Bell related to the user's message."
-    message = f"<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n{query}\n\n"
-    prompt = f"""<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+    
+    conversation = [
+        {
+            "role": role,
+            "content": [{"text": query}]
+        }
+    ]
 
-Cutting Knowledge Date: December 2023
-Today Date: 13 Aug 2024
-
-{system}
-
-{message}<|eot_id|><|start_header_id|>assistant<|end_header_id|>
-"""
-    print("--- PROMPT ---")
-    print(prompt)
-    print("--- PROMPT END ---")
-    return prompt
+    return conversation, system
 
 
-async def main():
+def main():
     query = """When did Charlie complete his masters?"""
 
     try:
         # RAG data format
-        rag_response = await retrieve_context(RAG_URL, query)
+        rag_response = retrieve_context(query)
         print("--- RAG RESPONSE ---")
         print(rag_response)
         print("--- RAG END ---")
@@ -69,18 +64,17 @@ async def main():
         rag_response = ""
 
 
-    prompt = build_prompt(query, rag_response)
+    conversation, system = get_prompt(query, role="user", rag_response=rag_response)
     try:
-        tgi_response = await post(TGI_URL, prompt)
-        tgi_response = tgi_response["generated_text"].strip()
-        print("--- TGI RESPONSE ---")
+        tgi_response = llm_request(conversation, system)
+        print("--- LLM RESPONSE ---")
         print(tgi_response)
-        print("--- TGI END ---")
+        print("--- LLM END ---")
     except Exception as e:
-        print("TGI service unexpected exception.")
+        print("LLM service unexpected exception.")
         logging.exception(e)
         tgi_response = ""    
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()

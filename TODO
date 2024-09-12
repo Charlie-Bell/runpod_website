@@ -1,0 +1,12 @@
+1. Clean up code.
+2. Fill out the database.
+3. Use Pydantic models to build a chat engine.
+4. Make a chat CLI interface for testing.
+5. Add automatic startup shell scripts.
+6. Asyc everything (boto needs aioboto or something)
+
+
+Optional:
+1. Put data in pdfs, e.g. CV and parse using a semantic chunker with LlamaIndex.
+2. Test other search algorithms.
+3. Use merged TGI and TEI endpoints. Re-add fp16 to TGI arguments

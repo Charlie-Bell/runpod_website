@@ -4,7 +4,7 @@ from pymilvus import MilvusClient
 from tqdm import tqdm
 
 from utils import embed_text
-from consts import RAG_URL, DOCS_DIR, DB_URI, COLLECTION_NAME
+from consts import DOCS_DIR, DB_URI, COLLECTION_NAME
 
 
 # Turns docs to a list
@@ -23,15 +23,14 @@ def docs_to_list(docs_dir):
     return text_lines
 
 # Create the collection
-async def create_collection(url, docs, collection_name=COLLECTION_NAME, uri=DB_URI):
+async def create_collection(docs, collection_name=COLLECTION_NAME, uri=DB_URI):
     client = MilvusClient(uri)
     # Delete existing collection
     if client.has_collection(collection_name):
         client.drop_collection(collection_name)
 
     # Initialize new collection
-    test_embedding = await embed_text(url, "This is a test")
-    embedding_dim = len(test_embedding)
+    embedding_dim = 1024
     client.create_collection(
         collection_name=collection_name,
         dimension=embedding_dim,
@@ -44,7 +43,7 @@ async def create_collection(url, docs, collection_name=COLLECTION_NAME, uri=DB_U
     data = []
     for i, line in enumerate(tqdm(docs, desc="Creating embeddings")):
         if line:
-            data.append({"vector": await embed_text(url, line), "text": line})
+            data.append({"vector": embed_text(line), "text": line})
     client.insert(collection_name=collection_name, data=data)
 
     # Close
@@ -53,7 +52,7 @@ async def create_collection(url, docs, collection_name=COLLECTION_NAME, uri=DB_U
 
 async def main():
     docs = docs_to_list(DOCS_DIR)
-    await create_collection(RAG_URL, docs)
+    await create_collection(docs)
 
 
 if __name__ == "__main__":
