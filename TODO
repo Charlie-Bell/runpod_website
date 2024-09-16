@@ -1,7 +1,7 @@
 1. Clean up code.
-2. Fill out the database.
-3. Use Pydantic models to build a chat engine.
-4. Make a chat CLI interface for testing.
+2. Use Pydantic models to build a chat engine.
+3. Make a chat CLI interface for testing.
+4. Fill out the database.
 5. Add automatic startup shell scripts.
 6. Asyc everything (boto needs aioboto or something)
 

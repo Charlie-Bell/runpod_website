@@ -3,3 +3,4 @@ pymilvus
 tqdm
 python-dotenv
 boto3
+pydantic

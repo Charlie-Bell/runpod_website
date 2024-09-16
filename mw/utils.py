@@ -4,7 +4,7 @@ from botocore.exceptions import ClientError
 from clients import boto_client
 
 
-def llm_request(conversation, system, client=boto_client, instruct_model_id="meta.llama3-1-8b-instruct-v1:0"):
+def llm_request(conversation, system, client=boto_client, instruct_model_id="meta.llama3-1-8b-instruct-v1:0") -> str:
     try:
         response = client.converse(
             modelId=instruct_model_id,
@@ -14,7 +14,6 @@ def llm_request(conversation, system, client=boto_client, instruct_model_id="met
         )
 
         response_text = response["output"]["message"]["content"][0]["text"]
-        print(response_text)
         return response_text
 
     except (ClientError, Exception) as e:
@@ -38,5 +37,4 @@ def embed_text(text, client=boto_client, embedding_model_id="amazon.titan-embed-
 
     response_body = json.loads(response['body'].read())
     embedding = response_body.get("embedding")
-    print(embedding)
     return embedding
