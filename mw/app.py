@@ -1,6 +1,8 @@
 import asyncio
 import logging
-from copy import deepcopy
+import uvicorn
+from fastapi import FastAPI, WebSocket
+from fastapi.responses import HTMLResponse
 from typing import Tuple, List, Dict
 from pydantic import BaseModel, Field
 from pymilvus import MilvusClient
@@ -82,49 +84,111 @@ class Conversation(BaseModel):
         return conversation
         
 
-def main():
+def pipeline(conversation_obj: Conversation, query: str):
+    try:
+        # RAG data format
+        rag_response = conversation_obj.retrieve_context(query).strip()
+        print("--- RAG RESPONSE ---")
+        print(rag_response)
+        print("--- RAG END ---")
+    except Exception as e:
+        print("RAG service unexpected exception.")
+        logging.exception(e)
+        rag_response = ""
+
+
+    conversation = conversation_obj.build_conversation(query)
+    system = conversation_obj.get_system_prompt(rag_response)
+    print(conversation, system)
+    try:
+        tgi_response = llm_request(conversation, system).strip()
+        print("--- LLM RESPONSE ---")
+        print(tgi_response)
+        print("--- LLM END ---")
+
+        # Append User and Assistant messages to conversation history
+        conversation_obj.append_message(
+            role="user",
+            content=query,
+            metadata={"system": system}
+        )
+        conversation_obj.append_message(
+            role="assistant",
+            content=tgi_response,
+            metadata={"system": system}
+        )
+
+    except Exception as e:
+        print("LLM service unexpected exception.")
+        logging.exception(e)
+        tgi_response = ""
+
+    return conversation_obj
+
+
+def test_cli():
     conversation_obj = Conversation()
     while True:
         query = input("Input: ") # """What is Charlie's favorite color?"""
+        conversation_obj = pipeline(conversation_obj, query)
 
+
+# FastAPI
+app = FastAPI()
+
+html = """
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Chat</title>
+    </head>
+    <body>
+        <h1>WebSocket Chat</h1>
+        <form action="" onsubmit="sendMessage(event)">
+            <input type="text" id="messageText" autocomplete="off"/>
+            <button>Send</button>
+        </form>
+        <ul id='messages'>
+        </ul>
+        <script>
+            var ws = new WebSocket("ws://localhost:8000/ws");
+            ws.onmessage = function(event) {
+                var messages = document.getElementById('messages')
+                var message = document.createElement('li')
+                var content = document.createTextNode(event.data)
+                message.appendChild(content)
+                messages.appendChild(message)
+            };
+            function sendMessage(event) {
+                var input = document.getElementById("messageText")
+                ws.send(input.value)
+                input.value = ''
+                event.preventDefault()
+            }
+        </script>
+    </body>
+</html>
+"""
+
+@app.get("/")
+async def get():
+    return HTMLResponse(html)
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    conversation_obj = Conversation()
+    while True:
+        query = await websocket.receive_text()
         try:
-            # RAG data format
-            rag_response = conversation_obj.retrieve_context(query).strip()
-            print("--- RAG RESPONSE ---")
-            print(rag_response)
-            print("--- RAG END ---")
+            conversation_obj = pipeline(conversation_obj, query)
+            await websocket.send_text(f"You: {query}")
+            await websocket.send_text(f"C-Bot: {conversation_obj.history[-1]['content']}")
         except Exception as e:
-            print("RAG service unexpected exception.")
+            print(e)
             logging.exception(e)
-            rag_response = ""
-
-
-        conversation = conversation_obj.build_conversation(query)
-        system = conversation_obj.get_system_prompt(rag_response)
-        print(conversation, system)
-        try:
-            tgi_response = llm_request(conversation, system).strip()
-            print("--- LLM RESPONSE ---")
-            print(tgi_response)
-            print("--- LLM END ---")
-
-            # Append User and Assistant messages to conversation history
-            conversation_obj.append_message(
-                role="user",
-                content=query,
-                metadata={"system": system}
-            )
-            conversation_obj.append_message(
-                role="assistant",
-                content=tgi_response,
-                metadata={"system": system}
-            )
-
-        except Exception as e:
-            print("LLM service unexpected exception.")
-            logging.exception(e)
-            tgi_response = ""
+            await websocket.send_text(f"Error: {e}")
 
 
 if __name__ == "__main__":
-    main()
+    uvicorn.run(app, host="0.0.0.0", port=8000)
