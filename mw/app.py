@@ -140,7 +140,10 @@ app = FastAPI()
 origins = [
     "http://localhost:5173",
     "http://localhost:80",
-    "http://localhost:8080"
+    "http://localhost:8080",
+    "charliebell.de",
+    "http://charliebell.de",
+    "https://charliebell.de"
 ]
 
 app.add_middleware(
@@ -151,7 +154,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.websocket("/chat")
+@app.websocket("/api/chat")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     conversation_obj = Conversation()
