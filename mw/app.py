@@ -142,8 +142,11 @@ origins = [
     "http://localhost:80",
     "http://localhost:8080",
     "charliebell.de",
+    "www.charliebell.de",
+    "http://www.charliebell.de",
     "http://charliebell.de",
-    "https://charliebell.de"
+    "https://charliebell.de",
+    "https://www.charliebell.de"
 ]
 
 app.add_middleware(
